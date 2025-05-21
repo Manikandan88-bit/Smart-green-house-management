@@ -1,1 +1,105 @@
+import React, { useEffect, useState } from 'react';
+
+const API = 'http://localhost:4000/api';
+
+function App() {
+  const [sensors, setSensors] = useState({});
+  const [actuators, setActuators] = useState({});
+
+  // Fetch sensor data
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch(API + '/sensors')
+        .then(res => res.json())
+        .then(data => setSensors(data));
+      fetch(API + '/actuators')
+        .then(res => res.json())
+        .then(data => setActuators(data));
+    }, 1500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Toggle actuator
+  const handleToggle = (name) => {
+    fetch(API + '/actuators', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, value: !actuators[name] })
+    })
+    .then(res => res.json())
+    .then(data => setActuators(data.actuators));
+  };
+
+  return (
+    <div style={{ width: 350, margin: "2rem auto", fontFamily: "sans-serif" }}>
+      <h2>Smart Greenhouse Dashboard</h2>
+      <h4>Sensor Data</h4>
+      <ul>
+        <li>Temperature: {sensors.temperature?.toFixed(2)} °C</li>
+        <li>Humidity: {sensors.humidity?.toFixed(2)} %</li>
+        <li>Soil Moisture: {sensors.soilMoisture?.toFixed(2)} %</li>
+      </ul>
+      <h4>Actuators</h4>
+      {Object.keys(actuators).map(name => (
+        <div key={name}>
+          <span>{name.charAt(0).toUpperCase() + name.slice(1)}: </span>
+          <button onClick={() => handleToggle(name)}>
+            {actuators[name] ? 'Turn Off' : 'Turn On'}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+# back end:
+
+const express = require('express');
+const cors = require('cors');
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+// Simulated sensor data
+let sensors = {
+  temperature: 28,
+  humidity: 65,
+  soilMoisture: 40
+};	
+
+// Simulated actuators
+let actuators = {
+  fan: false,
+  pump: false
+};
+
+// Endpoint: Get sensor data
+app.get('/api/sensors', (req, res) => {
+  // (Optionally, randomize data for simulation)
+  sensors.temperature += Math.random() - 0.5;
+  sensors.humidity += Math.random() - 0.5;
+  sensors.soilMoisture += Math.random() - 0.2;
+  res.json(sensors);
+});
+
+// Endpoint: Get actuator state
+app.get('/api/actuators', (req, res) => {
+  res.json(actuators);
+});
+
+// Endpoint: Set actuator state
+app.post('/api/actuators', (req, res) => {
+  const { name, value } = req.body;
+  if (actuators.hasOwnProperty(name)) {
+    actuators[name] = value;
+    return res.json({ success: true, actuators });
+  }
+  res.status(400).json({ success: false, message: 'Invalid actuator' });
+});
+
+const PORT = 4000;
+app.listen(PORT, () => {
+  console.log(`Backend running on http://localhost:${PORT}`);
+});
 
